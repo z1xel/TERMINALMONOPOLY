@@ -721,10 +721,7 @@ def evaluate_board_location(num_rolls: int, dice: tuple) -> str:
             update_history(f"{players[turn].name} paid ${rent} to {players[board.locations[cl].owner].name}")
     refresh_board()
         
-    # Check for doubles and roll again only if player wasn't in jail at the start of their turn
-    if dice[0] == dice[1]: # and not was_in_jail:
-        num_rolls += 1
-        request_roll()
+    # The banker decides whether another roll is allowed, based on doubles.
     return "player_choice" + output + set_cursor_str(0, 36) + "e to end turn, p to manage properties, d to view a deed?" + get_gameboard()
 
 def end_turn():
