@@ -622,6 +622,7 @@ def monopoly_controller(unit_test) -> None:
                 last_turn = mply.turn
                 net.send_notif(clients[mply.turn].socket, mply.get_gameboard() + ss.set_cursor_str(0, 38) + "It's your turn. Type roll to roll the dice.", "MPLY:")
                 clients[mply.turn].can_roll = True
+                clients[mply.turn].num_rolls = 0
                 # ss.set_cursor(ss.MONOPOLY_OUTPUT_COORDINATES[0]+1, ss.MONOPOLY_OUTPUT_COORDINATES[1]+1)
                 add_to_output_area("Monopoly", f"Player turn: {mply.turn}. Sent gameboard to {clients[mply.turn].name}.")
             except:
@@ -644,7 +645,6 @@ def monopoly_game(client: Client = None, cmd: str = None) -> None:
         Most of the game logic can be handled on the player side, but banker will
         have to preface the messages with cash, properties, etc. 
     """
-    dice = (0, -1)
     if mply.players[mply.turn].name == client.name: # Check if the client who sent data is the current player 
                                                     #TODO restrict name values so identical names are disallowed
         action = cmd.split(',')[1]
@@ -655,16 +655,20 @@ def monopoly_game(client: Client = None, cmd: str = None) -> None:
             dice = mply.roll()
             client.num_rolls += 1
             ret_val = mply.process_roll(client.num_rolls, dice)
+            # Roll eligibility belongs to the banker and persists between requests.
+            # Doubles grant another roll unless the player has gone to jail.
+            client.can_roll = (
+                dice[0] == dice[1]
+                and client.num_rolls < 3
+                and not mply.players[mply.turn].jail
+            )
             if ret_val.startswith("player_choice"):
                 ret_val.replace("player_choice", "")
-                client.can_roll = False
             net.send_notif(client.socket, ret_val, "MPLY:")
         elif action == 'trybuy': #TODO Better handling of locations would be nice. 
             mply.buy_logic("banker", "b")
             ret_val = mply.get_gameboard()
-            # Need to check if doubles were rolled, otherwise end the rolling phase
-            if dice[0] != dice[1]:
-                client.can_roll = False
+            # Keep the roll permission determined by the preceding dice roll.
             net.send_notif(client.socket, ret_val, "MPLY:")
         elif action == 'propmgmt': #TODO This is almost complete. Still somewhat buggy.
             try: 
